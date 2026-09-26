@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MGOMES Counter</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans Bengali", sans-serif; margin: 0; padding: 12px; background: #f1f5f9; color: #1e293b; }
+    h2, h3 { margin: 0 0 10px 0; }
+    .card { background: #fff; padding: 14px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 12px; }
+    
+    .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .lang-btn { background: #0f172a; color: #fff; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; }
+
+    .voice-panel { display: flex; gap: 8px; margin-bottom: 10px; }
+    .mic-btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; background: #0284c7; color: white; transition: background 0.2s; }
+    .mic-btn.listening { background: #ef4444; animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    .speech-lang-select { width: 110px; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; background: #fff; font-weight: 600; }
+    .voice-feedback { font-size: 12px; color: #64748b; font-style: italic; min-height: 18px; margin-bottom: 8px; }
+
+    .search-box { position: relative; margin-bottom: 10px; }
+    .search-input { width: 100%; padding: 10px 36px 10px 12px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 14px; outline: none; }
+    .search-input:focus { border-color: #2563eb; }
+    .clear-search { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; font-size: 16px; color: #94a3b8; cursor: pointer; display: none; }
+
+    .tabs-wrapper { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 10px; }
+    .tab-btn { background: #e2e8f0; color: #475569; border: none; padding: 9px 13px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; }
+    .tab-btn.active { background: #2563eb; color: #fff; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+    .item-card { position: relative; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 8px; text-align: center; cursor: pointer; }
+    .item-card:active { background: #e2e8f0; transform: scale(0.98); }
+    .item-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+    .item-price { color: #16a34a; font-weight: 700; font-size: 13px; }
+    .delete-item-btn { position: absolute; top: 2px; right: 4px; background: none; border: none; color: #94a3b8; font-size: 14px; cursor: pointer; padding: 2px 6px; }
+    .delete-item-btn:hover { color: #ef4444; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th, td { text-align: left; padding: 8px 4px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+    .qty-btn { background: #e2e8f0; border: none; width: 26px; height: 26px; border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer; }
+    .total-box { font-size: 20px; font-weight: 800; text-align: right; margin-top: 12px; color: #0f172a; }
+    
+    input, select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; margin-bottom: 8px; }
+    .action-btn { width: 100%; padding: 12px; font-size: 15px; font-weight: bold; border: none; border-radius: 8px; cursor: pointer; margin-top: 6px; }
+    .btn-green { background: #16a34a; color: #fff; }
+    .btn-blue { background: #2563eb; color: #fff; }
+    .btn-red { background: #ef4444; color: #fff; }
+    .btn-outline-red { background: transparent; border: 1px solid #ef4444; color: #ef4444; padding: 6px 10px; font-size: 12px; border-radius: 6px; cursor: pointer; }
+
+    @media print {
+      body * { visibility: hidden; }
+      #printable-receipt, #printable-receipt * { visibility: visible; }
+      #printable-receipt { position: absolute; left: 0; top: 0; width: 100%; }
+      .no-print { display: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-bar no-print">
+    <strong id="appTitle">POS Billing</strong>
+    <button class="lang-btn" onclick="toggleLanguage()" id="langToggleBtn">বাংলা / EN</button>
+  </div>
+
+  <div class="card no-print">
+    <div class="voice-panel">
+      <button class="mic-btn" id="voiceBtn" onclick="toggleVoiceRecognition()">
+        <span id="micIcon">🎤</span> <span id="micText">Voice Billing</span>
+      </button>
+      <select id="voiceLang" class="speech-lang-select" onchange="updateVoiceLang()">
+        <option value="bn-IN">বাংলা (BN)</option>
+        <option value="en-IN" selected>English (EN)</option>
+      </select>
+    </div>
+    <div class="voice-feedback" id="voiceStatus">Tap mic and speak: "2 Tea", "১ চা", "3 Samosa"</div>
+
+    <div class="search-box">
+      <input type="text" id="searchInput" class="search-input" placeholder="Search menu items..." oninput="handleSearch(this.value)">
+      <button class="clear-search" id="clearSearchBtn" onclick="clearSearch()">✕</button>
+    </div>
+  </div>
+
+  <div class="tabs-wrapper no-print" id="categoryTabs"></div>
+
+  <div class="card no-print">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <h3 id="currentCategoryTitle" style="margin:0;">Menu</h3>
+      <button class="btn-outline-red" id="deleteCategoryBtn" onclick="deleteCurrentCategory()">Delete Category</button>
+    </div>
+    <div class="grid" id="productGrid"></div>
+  </div>
+
+  <div class="card" id="printable-receipt">
+    <h2 id="receiptHeading">Cash Receipt</h2>
+    <table>
+      <thead>
+        <tr>
+          <th id="thItem">Item</th>
+          <th style="text-align:center;" id="thQty">Qty</th>
+          <th id="thPrice">Price</th>
+          <th style="text-align:right;" id="thTotal">Total</th>
+        </tr>
+      </thead>
+      <tbody id="billItems"></tbody>
+    </table>
+    <div class="total-box"><span id="lblGrandTotal">Grand Total</span>: ₹<span id="grandTotal">0.00</span></div>
+  </div>
+
+  <div class="card no-print">
+    <button class="action-btn btn-green" onclick="printReceipt()" id="btnPrint">Print / Save PDF</button>
+    <button class="action-btn btn-red" onclick="clearBill()" id="btnClear">Clear Current Bill</button>
+  </div>
+
+  <div class="card no-print">
+    <h3 id="lblAddItem">Add New Item</h3>
+    <input type="text" id="newProdName" placeholder="Item Name (e.g. চা / Masala Chai)">
+    <input type="number" id="newProdPrice" placeholder="Price (₹)">
+    <select id="newProdCat"></select>
+    <button class="action-btn btn-blue" onclick="addNewProduct()" id="btnSaveItem">Save Item</button>
+
+    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #e2e8f0;">
+
+    <h3 id="lblAddCat">Add New Category</h3>
+    <input type="text" id="newCategoryInput" placeholder="Category Name (e.g., Cold Drinks / ঠান্ডা পানীয়)">
+    <button class="action-btn btn-blue" onclick="addNewCategory()" id="btnAddCat">Add Category</button>
+  </div>
+
+  <script>
+    const i18n = {
+      en: {
+        appTitle: "POS Billing",
+        langToggle: "বাংলা",
+        voiceBtnDefault: "Voice Billing",
+        voiceBtnListening: "Listening...",
+        voiceHint: "Tap mic and speak: '2 Tea', 'Samosa 3', 'Add 2 Coffee'",
+        searchPlaceholder: "Search menu items...",
+        receiptHeading: "Cash Receipt",
+        thItem: "Item",
+        thQty: "Qty",
+        thPrice: "Price",
+        thTotal: "Total",
+        lblGrandTotal: "Grand Total",
+        btnPrint: "Print / Save PDF",
+        btnClear: "Clear Current Bill",
+        lblAddItem: "Add New Item",
+        newProdName: "Item Name",
+        newProdPrice: "Price (₹)",
+        btnSaveItem: "Save Item",
+        lblAddCat: "Add New Category",
+        newCategoryInput: "Category Name",
+        btnAddCat: "Add Category",
+        deleteCat: "Delete Category",
+        emptyBillAlert: "Bill is empty!",
+        micNotSupported: "Speech recognition is not supported on this browser or WebIntoApp wrapper.",
+        itemAdded: "Added",
+        notFound: "Could not find item"
+      },
+      bn: {
+        appTitle: "বিলিং কাউন্টার",
+        langToggle: "English",
+        voiceBtnDefault: "ভয়েস বিলিং",
+        voiceBtnListening: "শুনছি...",
+        voiceHint: "মাইক টিপে বলুন: '২ চা', 'সিঙ্গারা ৩টি', '১ কফি'",
+        searchPlaceholder: "মেনু খুঁজুন...",
+        receiptHeading: "ক্যাশ রসিদ",
+        thItem: "আইটেম",
+        thQty: "পরিমাণ",
+        thPrice: "মূল্য",
+        thTotal: "মোট",
+        lblGrandTotal: "সর্বমোট",
+        btnPrint: "প্রিন্ট / PDF সংরক্ষণ",
+        btnClear: "বিল পরিষ্কার করুন",
+        lblAddItem: "নতুন আইটেম যোগ করুন",
+        newProdName: "আইটেমের নাম",
+        newProdPrice: "মূল্য (₹)",
+        btnSaveItem: "আইটেম সেভ করুন",
+        lblAddCat: "নতুন ক্যাটাগরি যোগ করুন",
+        newCategoryInput: "ক্যাটাগরির নাম",
+        btnAddCat: "ক্যাটাগরি যোগ করুন",
+        deleteCat: "ক্যাটাগরি মুছুন",
+        emptyBillAlert: "বিল খালি আছে!",
+        micNotSupported: "আপনার ব্রাউজার বা অ্যাপে ভয়েস রিকগনিশন সমর্থন করছে না।",
+        itemAdded: "যোগ করা হয়েছে",
+        notFound: "আইটেমটি খুঁজে পাওয়া যায়নি"
+      }
+    };
+
+    let currentLang = localStorage.getItem('pos_ui_lang') || 'en';
+
+    const defaultCategories = [
+      { id: "tea", name: "Tea / চা" },
+      { id: "snacks", name: "Snacks / জলখাবার" },
+      { id: "colddrinks", name: "Cold Drinks" }
+    ];
+
+    const defaultMenu = [
+      { name: "Regular Tea / চা", price: 10, category: "tea" },
+      { name: "Masala Tea", price: 15, category: "tea" },
+      { name: "Lemon Tea / লেবু চা", price: 15, category: "tea" },
+      { name: "Samosa / সিঙ্গারা", price: 12, category: "snacks" },
+      { name: "Kachori / কচুরি", price: 12, category: "snacks" },
+      { name: "Aloo Chop / আলুর চপ", price: 10, category: "snacks" },
+      { name: "Cold Drink / কোল্ড ড্রিঙ্ক", price: 40, category: "colddrinks" }
+    ];
+
+    let categories = JSON.parse(localStorage.getItem('pos_categories')) || defaultCategories;
+    let products = JSON.parse(localStorage.getItem('pos_inventory')) || defaultMenu;
+    let currentCategory = categories.length > 0 ? categories[0].id : '';
+    let currentBill = [];
+    let searchQuery = '';
+
+    function saveState() {
+      localStorage.setItem('pos_categories', JSON.stringify(categories));
+      localStorage.setItem('pos_inventory', JSON.stringify(products));
+      localStorage.setItem('pos_ui_lang', currentLang);
+    }
+
+    function toggleLanguage() {
+      currentLang = currentLang === 'en' ? 'bn' : 'en';
+      saveState();
+      applyLanguage();
+    }
+
+    function applyLanguage() {
+      const t = i18n[currentLang];
+      document.getElementById('appTitle').innerText = t.appTitle;
+      document.getElementById('langToggleBtn').innerText = t.langToggle;
+      document.getElementById('receiptHeading').innerText = t.receiptHeading;
+      document.getElementById('thItem').innerText = t.thItem;
+      document.getElementById('thQty').innerText = t.thQty;
+      document.getElementById('thPrice').innerText = t.thPrice;
+      document.getElementById('thTotal').innerText = t.thTotal;
+      document.getElementById('lblGrandTotal').innerText = t.lblGrandTotal;
+      document.getElementById('btnPrint').innerText = t.btnPrint;
+      document.getElementById('btnClear').innerText = t.btnClear;
+      document.getElementById('lblAddItem').innerText = t.lblAddItem;
+      document.getElementById('btnSaveItem').innerText = t.btnSaveItem;
+      document.getElementById('lblAddCat').innerText = t.lblAddCat;
+      document.getElementById('btnAddCat').innerText = t.btnAddCat;
+      document.getElementById('deleteCategoryBtn').innerText = t.deleteCat;
+      document.getElementById('searchInput').placeholder = t.searchPlaceholder;
+      document.getElementById('newProdName').placeholder = t.newProdName;
+      document.getElementById('newProdPrice').placeholder = t.newProdPrice;
+      document.getElementById('newCategoryInput').placeholder = t.newCategoryInput;
+      if (!isListening) {
+        document.getElementById('micText').innerText = t.voiceBtnDefault;
+        document.getElementById('voiceStatus').innerText = t.voiceHint;
+      }
+    }
+
+    function handleSearch(val) {
+      searchQuery = val.trim().toLowerCase();
+      document.getElementById('clearSearchBtn').style.display = searchQuery ? 'block' : 'none';
+      renderCategoryItems();
+    }
+
+    function clearSearch() {
+      document.getElementById('searchInput').value = '';
+      searchQuery = '';
+      document.getElementById('clearSearchBtn').style.display = 'none';
+      renderCategoryItems();
+    }
+
+    function renderTabs() {
+      const container = document.getElementById('categoryTabs');
+      const selectDropdown = document.getElementById('newProdCat');
+      container.innerHTML = '';
+      selectDropdown.innerHTML = '';
+
+      categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = `tab-btn ${cat.id === currentCategory && !searchQuery ? 'active' : ''}`;
+        btn.innerText = cat.name;
+        btn.onclick = () => {
+          currentCategory = cat.id;
+          clearSearch();
+          renderTabs();
+        };
+        container.appendChild(btn);
+
+        const opt = document.createElement('option');
+        opt.value = cat.id;
+        opt.innerText = cat.name;
+        selectDropdown.appendChild(opt);
+      });
+
+      renderCategoryItems();
+    }
+
+    function renderCategoryItems() {
+      const grid = document.getElementById('productGrid');
+      const title = document.getElementById('currentCategoryTitle');
+      const delBtn = document.getElementById('deleteCategoryBtn');
+      grid.innerHTML = '';
+
+      let itemsToDisplay = [];
+
+      if (searchQuery) {
+        title.innerText = currentLang === 'bn' ? `অনুসন্ধানের ফলাফল: "${searchQuery}"` : `Search Results: "${searchQuery}"`;
+        delBtn.style.display = 'none';
+        itemsToDisplay = products.filter(p => p.name.toLowerCase().includes(searchQuery));
+      } else {
+        const activeCatObj = categories.find(c => c.id === currentCategory);
+        if (!activeCatObj) {
+          title.innerText = '';
+          delBtn.style.display = 'none';
+          return;
+        }
+        title.innerText = activeCatObj.name;
+        delBtn.style.display = 'block';
+        itemsToDisplay = products.filter(p => p.category === currentCategory);
+      }
+
+      if (itemsToDisplay.length === 0) {
+        grid.innerHTML = `<div style="grid-column: 1/-1; color: #94a3b8; text-align: center; padding: 12px;">${currentLang === 'bn' ? 'কোন আইটেম পাওয়া যায়নি' : 'No items found'}</div>`;
+        return;
+      }
+
+      itemsToDisplay.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'item-card';
+        div.onclick = (e) => {
+          if (!e.target.classList.contains('delete-item-btn')) {
+            addItemToBill(p, 1);
+          }
+        };
+        div.innerHTML = `
+          <button class="delete-item-btn" onclick="deleteProduct('${p.name}')">✕</button>
+          <div class="item-name">${p.name}</div>
+          <div class="item-price">₹${p.price.toFixed(2)}</div>
+        `;
+        grid.appendChild(div);
+      });
+    }
+
+    function deleteCurrentCategory() {
+      const hasProducts = products.some(p => p.category === currentCategory);
+      if (hasProducts) {
+        return alert(currentLang === 'bn' ? "ক্যাটাগরির ভেতরে আইটেম থাকলে মোছা যাবে না।" : "Cannot delete category containing items.");
+      }
+      if (!confirm("Are you sure?")) return;
+      categories = categories.filter(c => c.id !== currentCategory);
+      currentCategory = categories.length > 0 ? categories[0].id : '';
+      saveState();
+      renderTabs();
+    }
+
+    function deleteProduct(productName) {
+      if (!confirm(`Delete "${productName}"?`)) return;
+      products = products.filter(p => p.name !== productName);
+      saveState();
+      renderCategoryItems();
+    }
+
+    function addNewCategory() {
+      const name = document.getElementById('newCategoryInput').value.trim();
+      if (!name) return;
+      const id = name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now();
+      categories.push({ id, name });
+      document.getElementById('newCategoryInput').value = '';
+      currentCategory = id;
+      saveState();
+      renderTabs();
+    }
+
+    function addNewProduct() {
+      const name = document.getElementById('newProdName').value.trim();
+      const price = parseFloat(document.getElementById('newProdPrice').value);
+      const category = document.getElementById('newProdCat').value;
+
+      if (!name || isNaN(price) || !category) return;
+      products.push({ name, price, category });
+      saveState();
+
+      document.getElementById('newProdName').value = '';
+      document.getElementById('newProdPrice').value = '';
+      renderCategoryItems();
+    }
+
+    function addItemToBill(product, qty = 1) {
+      const existing = currentBill.find(item => item.name === product.name);
+      if (existing) {
+        existing.qty += qty;
+        existing.total = existing.qty * existing.price;
+      } else {
+        currentBill.push({ name: product.name, price: product.price, qty: qty, total: product.price * qty });
+      }
+      renderBill();
+    }
+
+    function updateQty(index, change) {
+      currentBill[index].qty += change;
+      if (currentBill[index].qty <= 0) {
+        currentBill.splice(index, 1);
+      } else {
+        currentBill[index].total = currentBill[index].qty * currentBill[index].price;
+      }
+      renderBill();
+    }
+
+    function renderBill() {
+      const tbody = document.getElementById('billItems');
+      tbody.innerHTML = '';
+      let grandTotal = 0;
+
+      currentBill.forEach((item, idx) => {
+        grandTotal += item.total;
+        tbody.innerHTML += `<tr>
+          <td>${item.name}</td>
+          <td style="text-align:center;">
+            <button class="qty-btn" onclick="updateQty(${idx}, -1)">-</button>
+            <span style="margin: 0 6px; font-weight:600;">${item.qty}</span>
+            <button class="qty-btn" onclick="updateQty(${idx}, 1)">+</button>
+          </td>
+          <td>₹${item.price.toFixed(2)}</td>
+          <td style="text-align:right;">₹${item.total.toFixed(2)}</td>
+        </tr>`;
+      });
+
+      document.getElementById('grandTotal').innerText = grandTotal.toFixed(2);
+    }
+
+    function clearBill() {
+      currentBill = [];
+      renderBill();
+    }
+
+    function printReceipt() {
+      if (currentBill.length === 0) return alert(i18n[currentLang].emptyBillAlert);
+      window.print();
+    }
+
+    const bengaliNumMap = {
+      '১': 1, '২': 2, '৩': 3, '৪': 4, '৫': 5, '৬': 6, '৭': 7, '৮': 8, '৯': 9, '১০': 10,
+      'এক': 1, 'দুই': 2, 'দুটো': 2, 'তিন': 3, 'তিনটে': 3, 'চার': 4, 'চারটে': 4, 'পাঁচ': 5,
+      'ছয়': 6, 'সাত': 7, 'আট': 8, 'নয়': 9, 'দশ': 10
+    };
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition = null;
+    let isListening = false;
+
+    if (SpeechRecognition) {
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        isListening = true;
+        document.getElementById('voiceBtn').classList.add('listening');
+        document.getElementById('micText').innerText = i18n[currentLang].voiceBtnListening;
+        document.getElementById('voiceStatus').innerText = currentLang === 'bn' ? 'শুনছি, বলুন...' : 'Listening... speak now';
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.toLowerCase();
+        document.getElementById('voiceStatus').innerText = `"${transcript}"`;
+        parseVoiceCommand(transcript);
+      };
+
+      recognition.onerror = (event) => {
+        document.getElementById('voiceStatus').innerText = `Error: ${event.error}`;
+        resetMicUI();
+      };
+
+      recognition.onend = () => {
+        resetMicUI();
+      };
+    }
+
+    function resetMicUI() {
+      isListening = false;
+      document.getElementById('voiceBtn').classList.remove('listening');
+      document.getElementById('micText').innerText = i18n[currentLang].voiceBtnDefault;
+    }
+
+    function toggleVoiceRecognition() {
+      if (!recognition) {
+        alert(i18n[currentLang].micNotSupported);
+        return;
+      }
+      if (isListening) {
+        recognition.stop();
+      } else {
+        recognition.lang = document.getElementById('voiceLang').value;
+        recognition.start();
+      }
+    }
+
+    function updateVoiceLang() {
+      if (isListening && recognition) {
+        recognition.stop();
+      }
+    }
+
+    function parseVoiceCommand(text) {
+      let qty = 1;
+      let matchedNumber = null;
+
+      for (const [word, val] of Object.entries(bengaliNumMap)) {
+        if (text.includes(word)) {
+          qty = val;
+          matchedNumber = word;
+          break;
+        }
+      }
+
+      const digitMatch = text.match(/\d+/);
+      if (digitMatch && !matchedNumber) {
+        qty = parseInt(digitMatch[0], 10);
+      }
+
+      let cleanText = text
+        .replace(/\d+/g, '')
+        .replace(/(দুটো|তিনটে|চারটে|পিস|প্লেট|কাপ|add|please|give|ta|ti)/gi, '')
+        .trim();
+
+      if (matchedNumber) {
+        cleanText = cleanText.replace(matchedNumber, '').trim();
+      }
+
+      const matchedProduct = products.find(p => {
+        const pName = p.name.toLowerCase();
+        const parts = pName.split(/[\/\s,]+/);
+        return parts.some(part => part.length > 2 && (cleanText.includes(part) || part.includes(cleanText)));
+      });
+
+      if (matchedProduct) {
+        addItemToBill(matchedProduct, qty);
+        document.getElementById('voiceStatus').innerText = `✔ ${i18n[currentLang].itemAdded}: ${qty}x ${matchedProduct.name}`;
+      } else {
+        document.getElementById('voiceStatus').innerText = `✖ ${i18n[currentLang].notFound}: "${cleanText || text}"`;
+      }
+    }
+
+    applyLanguage();
+    renderTabs();
+  </script>
+</body>
+</html>
